@@ -2,11 +2,6 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from convlstmcell import ConvLSTMCell
-from torch.autograd import Variable
-
-
-from debug import info
-
 
 class PredNet(nn.Module):
     def __init__(self, R_channels, A_channels, output_mode='error'):
@@ -55,10 +50,10 @@ class PredNet(nn.Module):
         batch_size = input.size(0)
 
         for l in range(self.n_layers):
-            E_seq[l] = Variable(torch.zeros(batch_size, 2*self.a_channels[l], w, h)).cuda()
-            R_seq[l] = Variable(torch.zeros(batch_size, self.r_channels[l], w, h)).cuda()
-            w = w//2
-            h = h//2
+			ds_factor = 2 ** l
+			layer_w, layer_h = w // ds_factor, h // ds_factor
+            E_seq[l] = torch.zeros(batch_size, 2*self.a_channels[l], layer_w, layer_h).cuda()
+            R_seq[l] = torch.zeros(batch_size, self.r_channels[l], layer_w, layer_h).cuda()
         time_steps = input.size(1)
         total_error = []
         
