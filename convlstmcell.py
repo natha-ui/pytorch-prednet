@@ -3,7 +3,6 @@ import math
 import torch.nn as nn
 from torch.nn import Parameter
 from torch.nn import functional as F
-from torch.autograd import Variable
 from torch.nn.modules.utils import _pair
 
 # https://gist.github.com/Kaixhin/57901e91e5c5a8bac3eb0cbbdd3aba81
@@ -70,14 +69,14 @@ class ConvLSTMCell(nn.Module):
         wc = F.conv2d(c_0, self.weight_ch, self.bias_ch, self.stride,
                       self.padding_h, self.dilation, self.groups)
 
-        wxhc = wx + wh + torch.cat((wc[:, :2 * self.out_channels], Variable(self.wc_blank).expand(
+        wxhc = wx + wh + torch.cat((wc[:, :2 * self.out_channels], self.wc_blank.expand(
             wc.size(0), wc.size(1) // 3, wc.size(2), wc.size(3)), wc[:, 2 * self.out_channels:]), 1)
 
-        i = F.sigmoid(wxhc[:, :self.out_channels])
-        f = F.sigmoid(wxhc[:, self.out_channels:2 * self.out_channels])
-        g = F.tanh(wxhc[:, 2 * self.out_channels:3 * self.out_channels])
-        o = F.sigmoid(wxhc[:, 3 * self.out_channels:])
+        i = torch.sigmoid(wxhc[:, :self.out_channels])
+        f = torch.sigmoid(wxhc[:, self.out_channels:2 * self.out_channels])
+        g = torch.tanh(wxhc[:, 2 * self.out_channels:3 * self.out_channels])
+        o = torch.sigmoid(wxhc[:, 3 * self.out_channels:])
 
         c_1 = f * c_0 + i * g
-        h_1 = o * F.tanh(c_1)
+        h_1 = o * torch.tanh(c_1)
         return h_1, (h_1, c_1)
