@@ -8,14 +8,14 @@ class PredNet(nn.Module):
         super(PredNet, self).__init__()
         self.r_channels = R_channels + (0, )  # for convenience
         self.a_channels = A_channels
-        self.n_layers = len(R_channels)
-        self.output_mode = output_mode
+		self.n_layers = len(R_channels)
+		self.output_mode = output_mode
 
         default_output_modes = ['prediction', 'error']
         assert output_mode in default_output_modes, 'Invalid output_mode: ' + str(output_mode)
 
         for i in range(self.n_layers):
-            cell = ConvLSTMCell(2 * self.a_channels[i] + self.r_channels[i+1], self.r_channels[i],(3, 3))
+		    cell = ConvLSTMCell(2 * self.a_channels[i] + self.r_channels[i+1], self.r_channels[i],(3, 3))
 			setattr(self, 'cell{}'.format(i), cell)
 
         for i in range(self.n_layers):
@@ -49,7 +49,7 @@ class PredNet(nn.Module):
         batch_size = input.size(0)
 
         for l in range(self.n_layers):
-			ds_factor = 2 ** l
+		    ds_factor = 2 ** l
 			layer_w, layer_h = w // ds_factor, h // ds_factor
 			E_seq[l] = torch.zeros(batch_size, 2*self.a_channels[l], layer_w, layer_h).cuda()
 			R_seq[l] = torch.zeros(batch_size, self.r_channels[l], layer_w, layer_h).cuda()
