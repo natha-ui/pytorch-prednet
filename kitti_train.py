@@ -71,6 +71,6 @@ for epoch in range(num_epochs):
 
         optimizer.step()
         if i%10 == 0:
-            print('Epoch: {}/{}, step: {}/{}, errors: {}'.format(epoch, num_epochs, i, len(kitti_train)//batch_size, errors.data[0]))
+            print('Epoch: {}/{}, step: {}/{}, errors: {}'.format(epoch, num_epochs, i, len(kitti_train)//batch_size, errors.item()))
 
 torch.save(model.state_dict(), 'training.pt')
