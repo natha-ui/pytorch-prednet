@@ -1,7 +1,7 @@
 import torch
 import os
 import numpy as np
-import hickle as hkl
+import h5py
 
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
