@@ -6,17 +6,17 @@ from convlstmcell import ConvLSTMCell
 class PredNet(nn.Module):
     def __init__(self, R_channels, A_channels, output_mode='error'):
         super(PredNet, self).__init__()
-        self.r_channels = R_channels + (0, )  # for convenience
-        self.a_channels = A_channels
-		self.n_layers = len(R_channels)
-		self.output_mode = output_mode
+	    self.r_channels = R_channels + (0, )  # for convenience
+	    self.a_channels = A_channels
+	    self.n_layers = len(R_channels)
+	    self.output_mode = output_mode
 
         default_output_modes = ['prediction', 'error']
         assert output_mode in default_output_modes, 'Invalid output_mode: ' + str(output_mode)
 
         for i in range(self.n_layers):
-		    cell = ConvLSTMCell(2 * self.a_channels[i] + self.r_channels[i+1], self.r_channels[i],(3, 3))
-			setattr(self, 'cell{}'.format(i), cell)
+		cell = ConvLSTMCell(2 * self.a_channels[i] + self.r_channels[i+1], self.r_channels[i],(3, 3))
+		setattr(self, 'cell{}'.format(i), cell)
 
         for i in range(self.n_layers):
             conv = nn.Sequential(nn.Conv2d(self.r_channels[i], self.a_channels[i], 3, padding=1), nn.ReLU())
@@ -49,10 +49,10 @@ class PredNet(nn.Module):
         batch_size = input.size(0)
 
         for l in range(self.n_layers):
-		    ds_factor = 2 ** l
-			layer_w, layer_h = w // ds_factor, h // ds_factor
-			E_seq[l] = torch.zeros(batch_size, 2*self.a_channels[l], layer_w, layer_h).cuda()
-			R_seq[l] = torch.zeros(batch_size, self.r_channels[l], layer_w, layer_h).cuda()
+		ds_factor = 2 ** l
+		layer_w, layer_h = w // ds_factor, h // ds_factor
+		E_seq[l] = torch.zeros(batch_size, 2*self.a_channels[l], layer_w, layer_h).cuda()
+		R_seq[l] = torch.zeros(batch_size, self.r_channels[l], layer_w, layer_h).cuda()
         time_steps = input.size(1)
         total_error = []
         
@@ -125,6 +125,6 @@ class SatLU(nn.Module):
     def __repr__(self):
         inplace_str = ', inplace' if self.inplace else ''
         return self.__class__.__name__ + ' ('\
-            + 'min_val=' + str(self.lower) \
-	        + ', max_val=' + str(self.upper) \
-	        + inplace_str + ')'
+	    + 'min_val=' + str(self.lower) \
+	    + ', max_val=' + str(self.upper) \
+	    + inplace_str + ')'
