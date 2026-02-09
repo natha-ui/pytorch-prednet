@@ -10,9 +10,8 @@ from prednet import PredNet
 
 import torchvision
 
-def save_image(tensor, filename, nrow=8, padding=2,
-               normalize=False, range=None, scale_each=False, pad_value=0):
-    from PIL import Image
+def save_image(tensor, filename, nrow=8, padding=2, normalize=False, range=None, scale_each=False, pad_value=0):
+  from PIL import Image
     im = Image.fromarray(np.rollaxis(tensor.numpy(), 0, 3))
     im.save(filename)
 from scipy.misc import imshow, imsave
@@ -35,25 +34,25 @@ model = PredNet(R_channels, A_channels, output_mode='prediction')
 model.load_state_dict(torch.load('training.pt'))
 
 if torch.cuda.is_available():
-    print('Using GPU.')
-    model.cuda()
+  print('Using GPU.')
+  model.cuda()
 
 for i, inputs in enumerate(test_loader):
-    inputs = inputs.permute(0, 1, 4, 2, 3) # batch x time_steps x channel x width x height
-    inputs = Variable(inputs.cuda())
-    origin = inputs.data.cpu().byte()[:, nt-1]
-    print('origin:')
-    print(type(origin))
-    print(origin.size())
+  inputs = inputs.permute(0, 1, 4, 2, 3) # batch x time_steps x channel x width x height
+  inputs = Variable(inputs.cuda())
+  origin = inputs.data.cpu().byte()[:, nt-1]
+  print('origin:')
+  print(type(origin))
+  print(origin.size())
 
-    print('predicted:')
-    pred = model(inputs)
-    pred = pred.data.cpu().byte()
-    print(type(pred))
-    print(pred.size())
-    origin = torchvision.utils.make_grid(origin, nrow=4)
-    pred = torchvision.utils.make_grid(pred, nrow=4)
-    save_image(origin, 'origin.jpg')
-    save_image(pred, 'predicted.jpg')
-    break
+  print('predicted:')
+  pred = model(inputs)
+  pred = pred.data.cpu().byte()
+  print(type(pred))
+  print(pred.size())
+  origin = torchvision.utils.make_grid(origin, nrow=4)
+  pred = torchvision.utils.make_grid(pred, nrow=4)
+  save_image(origin, 'origin.jpg')
+  save_image(pred, 'predicted.jpg')
+  break
 
