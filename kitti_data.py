@@ -1,16 +1,24 @@
-import hickle as hkl
-
 import torch
 import torch.utils.data as data
 
 
 
-class KITTI(data.Dataset):
+import h5py
+
+class KITTI(Dataset):
     def __init__(self, datafile, sourcefile, nt):
         self.datafile = datafile
         self.sourcefile = sourcefile
-        self.X = hkl.load(self.datafile)
-        self.sources = hkl.load(self.sourcefile)
+        self.nt = nt
+        
+        # Load with h5py instead of hickle
+        with h5py.File(self.datafile, 'r') as f:
+            key = list(f.keys())[0]
+            self.X = f[key][:]
+        
+        with h5py.File(self.sourcefile, 'r') as f:
+            key = list(f.keys())[0]
+            self.sources = f[key][:]
         self.nt = nt
         cur_loc = 0
         possible_starts = []
