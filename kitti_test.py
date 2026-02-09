@@ -12,8 +12,8 @@ import torchvision
 
 def save_image(tensor, filename, nrow=8, padding=2, normalize=False, range=None, scale_each=False, pad_value=0):
   from PIL import Image
-    im = Image.fromarray(np.rollaxis(tensor.numpy(), 0, 3))
-    im.save(filename)
+  im = Image.fromarray(np.rollaxis(tensor.numpy(), 0, 3))
+  im.save(filename)
 from scipy.misc import imshow, imsave
 
 batch_size = 16
