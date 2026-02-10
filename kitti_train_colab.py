@@ -1,5 +1,6 @@
 import os 
 
+checkpoint_dir = '/content/drive/MyDrive/prednet_checkpoints'
 os.makedirs(checkpoint_dir, exist_ok=True)
 print(f"Checkpoints will be saved to: {checkpoint_dir}")
 
