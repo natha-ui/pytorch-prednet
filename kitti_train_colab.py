@@ -26,6 +26,8 @@ lr = 0.001
 nt = 10
 num_epochs = 150
 
+DATA_DIR = '/content/kitti_data'
+
 train_file = 'kitti_data/X_train.hkl'
 train_sources = 'kitti_data/sources_train.hkl'
 val_file = 'kitti_data/X_val.hkl'
