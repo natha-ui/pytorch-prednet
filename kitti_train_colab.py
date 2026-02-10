@@ -105,9 +105,9 @@ if os.path.exists(checkpoint_path):
     train_losses = checkpoint['train_losses']
     val_losses = checkpoint['val_losses']
     
-    print(f"✓ Resuming from epoch {start_epoch}")
-    print(f"✓ Previous train loss: {train_losses[-1]:.4f}")
-    print(f"✓ Previous val loss: {val_losses[-1]:.4f}")
+    print(f"Resuming from epoch {start_epoch}")
+    print(f"Previous train loss: {train_losses[-1]:.4f}")
+    print(f"Previous val loss: {val_losses[-1]:.4f}")
     print("=" * 50)
 else:
     print("New training - no checkpoint found")
