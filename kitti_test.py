@@ -9,8 +9,6 @@ from kitti_data import KITTI
 from prednet import PredNet
 
 import torchvision
-import matplotlib as plt
-from scipy import misc
 
 def save_image(tensor, filename, nrow=8, padding=2, normalize=False, range=None, scale_each=False, pad_value=0):
   from PIL import Image
