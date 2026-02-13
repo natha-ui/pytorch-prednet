@@ -22,7 +22,7 @@ batch_size = 16
 A_channels = (3, 48, 96, 192)
 R_channels = (3, 48, 96, 192)
 
-DATA_DIR = '/media/lei/000F426D0004CCF4/datasets/kitti_data'
+DATA_DIR = '/content/kitti_data'
 test_file = os.path.join(DATA_DIR, 'X_test.hkl')
 test_sources = os.path.join(DATA_DIR, 'sources_test.hkl')
 
