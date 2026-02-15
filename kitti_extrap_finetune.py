@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
+import gc
 
 np.random.seed(123)
 torch.manual_seed(123)
@@ -78,25 +79,34 @@ class PredNetExtrapolator(nn.Module):
             predictions: Tensor [batch, time_steps, channels, height, width]
         """
         batch_size, time_steps, channels, height, width = x.shape
+        
+        # We'll build predictions frame by frame
         all_predictions = []
         
-        for t in range(time_steps):
-            if t < self.extrap_start_time:
-                # Use ground truth frames up to extrap_start_time
-                input_sequence = x[:, :t+1]
-            else:
-                # After extrap_start_time, use predicted frames
-                # Combine ground truth (up to extrap_start_time) with predictions
-                ground_truth_part = x[:, :self.extrap_start_time]
-                predicted_part = torch.stack(all_predictions[self.extrap_start_time:], dim=1)
-                input_sequence = torch.cat([ground_truth_part, predicted_part], dim=1)
-            
-            # Get prediction for the next frame
-            # The model predicts the last frame given the sequence
-            pred = self.prednet(input_sequence)
-            all_predictions.append(pred)
+        # Clone input so we can modify it
+        modified_input = x.clone()
         
-        # Stack all predictions
+        # Process the sequence frame by frame
+        for t in range(time_steps):
+            # Prepare the input sequence up to current timestep
+            if t < self.extrap_start_time:
+                # Use ground truth for all frames up to t
+                current_sequence = modified_input[:, :t+1]
+            else:
+                # Use ground truth up to extrap_start_time, then use predictions
+                current_sequence = modified_input[:, :t+1]
+            
+            # Get prediction for the current timestep
+            # PredNet returns only the last frame prediction
+            pred = self.prednet(current_sequence)  # [batch, channels, height, width]
+            all_predictions.append(pred)
+            
+            # For next iteration, replace the next frame with this prediction
+            # (if we're past extrap_start_time)
+            if t >= self.extrap_start_time and t < time_steps - 1:
+                modified_input[:, t+1] = pred.detach()
+        
+        # Stack all predictions into [batch, time_steps, channels, height, width]
         return torch.stack(all_predictions, dim=1)
 
 
@@ -178,6 +188,12 @@ def train_epoch(model, train_loader, optimizer, device, samples_per_epoch, batch
         
         if i % 25 == 0:
             print(f'  Batch {i}/{max_batches}, Loss: {loss.item():.6f}')
+        
+        # Clear cache periodically
+        if i % 50 == 0:
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
     
     return total_loss / num_batches if num_batches > 0 else 0
 
@@ -272,7 +288,8 @@ try:
             }, checkpoint_file)
             print(f'💾 Backup checkpoint saved: epoch {epoch+1}')
         
-        # Clear cache
+        # Clear cache after each epoch
+        gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
