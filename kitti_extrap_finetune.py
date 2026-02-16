@@ -110,23 +110,86 @@ class PredNetExtrapolator(nn.Module):
         return torch.stack(all_predictions, dim=1)
 
 
-# Load pretrained t+1 model
-print("Loading pretrained model...")
-if not os.path.exists(orig_weights_file):
-    raise FileNotFoundError(f"Checkpoint not found: {orig_weights_file}")
+# Check for existing extrapolation checkpoints to continue training
+def find_latest_extrap_checkpoint(weights_dir):
+    """Find the most recent extrapolation checkpoint."""
+    import glob
+    import re
+    
+    # Look for both the best model and epoch checkpoints
+    candidates = []
+    
+    # Check for best model
+    best_model_path = os.path.join(weights_dir, 'prednet_kitti_weights_extrap_finetuned.pth')
+    if os.path.exists(best_model_path):
+        candidates.append(best_model_path)
+    
+    # Check for epoch checkpoints
+    pattern = os.path.join(weights_dir, 'prednet_extrap_epoch_*.pth')
+    epoch_checkpoints = glob.glob(pattern)
+    candidates.extend(epoch_checkpoints)
+    
+    if not candidates:
+        return None
+    
+    # Get the most recent by modification time
+    latest = max(candidates, key=os.path.getmtime)
+    return latest
 
-checkpoint = torch.load(orig_weights_file, map_location=device)
-print(f"Loaded checkpoint from epoch {checkpoint['epoch'] + 1}")
-print(f"Previous train loss: {checkpoint['train_losses'][-1]:.4f}")
-print(f"Previous val loss: {checkpoint['val_losses'][-1]:.4f}")
+# Try to find existing extrapolation checkpoint
+extrap_checkpoint_path = find_latest_extrap_checkpoint(WEIGHTS_DIR)
+start_epoch = 0
+train_losses = []
+val_losses = []
+best_val_loss = float('inf')
 
-# Create base model in prediction mode
-base_model = PredNet(R_channels, A_channels, output_mode='prediction')
-base_model.load_state_dict(checkpoint['model_state_dict'])
-
-# Wrap with extrapolation capability
-model = PredNetExtrapolator(base_model, extrap_start_time)
-model = model.to(device)
+if extrap_checkpoint_path and os.path.exists(extrap_checkpoint_path):
+    print(f"Found existing extrapolation checkpoint: {extrap_checkpoint_path}")
+    print("Resuming extrapolation fine-tuning from checkpoint...")
+    
+    checkpoint = torch.load(extrap_checkpoint_path, map_location=device)
+    start_epoch = checkpoint['epoch'] + 1
+    train_losses = checkpoint.get('train_losses', [])
+    val_losses = checkpoint.get('val_losses', [])
+    best_val_loss = checkpoint.get('best_val_loss', float('inf'))
+    
+    print(f"Resuming from epoch {start_epoch}")
+    print(f"Previous best val loss: {best_val_loss:.4f}")
+    if train_losses:
+        print(f"Previous train loss: {train_losses[-1]:.4f}")
+    if val_losses:
+        print(f"Previous val loss: {val_losses[-1]:.4f}")
+    
+    # Create base model and load weights
+    base_model = PredNet(R_channels, A_channels, output_mode='prediction')
+    base_model.load_state_dict(checkpoint['model_state_dict'])
+    
+    # Wrap with extrapolation capability
+    model = PredNetExtrapolator(base_model, extrap_start_time)
+    model = model.to(device)
+    
+    print("✓ Extrapolation checkpoint loaded successfully")
+    
+else:
+    # No extrapolation checkpoint found, load pretrained t+1 model
+    print("No extrapolation checkpoint found. Loading pretrained t+1 model...")
+    if not os.path.exists(orig_weights_file):
+        raise FileNotFoundError(f"Checkpoint not found: {orig_weights_file}")
+    
+    checkpoint = torch.load(orig_weights_file, map_location=device)
+    print(f"Loaded t+1 checkpoint from epoch {checkpoint['epoch'] + 1}")
+    print(f"Previous train loss: {checkpoint['train_losses'][-1]:.4f}")
+    print(f"Previous val loss: {checkpoint['val_losses'][-1]:.4f}")
+    
+    # Create base model in prediction mode
+    base_model = PredNet(R_channels, A_channels, output_mode='prediction')
+    base_model.load_state_dict(checkpoint['model_state_dict'])
+    
+    # Wrap with extrapolation capability
+    model = PredNetExtrapolator(base_model, extrap_start_time)
+    model = model.to(device)
+    
+    print("Starting extrapolation fine-tuning from scratch")
 
 print(f"\nModel parameters: {sum(p.numel() for p in model.parameters()):,}")
 print(f"Extrapolation starts at time step: {extrap_start_time}")
@@ -146,6 +209,15 @@ print(f"Validation samples: {len(kitti_val)}")
 
 # Optimizer with learning rate schedule
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+# If resuming, load optimizer state
+if extrap_checkpoint_path and 'optimizer_state_dict' in checkpoint:
+    try:
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        print("✓ Optimizer state loaded")
+    except Exception as e:
+        print(f"⚠ Could not load optimizer state: {e}")
+        print("  Starting with fresh optimizer")
 
 # Learning rate scheduler: 0.001 for first 75 epochs, then 0.0001
 def adjust_learning_rate(optimizer, epoch):
@@ -231,15 +303,14 @@ os.makedirs(WEIGHTS_DIR, exist_ok=True)
 # Training loop
 print("\n" + "=" * 70)
 print("Starting fine-tuning for extrapolation")
+if start_epoch > 0:
+    print(f"Resuming from epoch {start_epoch + 1}")
 print("=" * 70)
 
-best_val_loss = float('inf')
-train_losses = []
-val_losses = []
 learning_rates = []
 
 try:
-    for epoch in range(num_epochs):
+    for epoch in range(start_epoch, num_epochs):
         # Adjust learning rate
         current_lr = adjust_learning_rate(optimizer, epoch)
         learning_rates.append(current_lr)
@@ -319,8 +390,9 @@ if train_losses:
     
     # Plot losses
     plt.subplot(1, 2, 1)
-    plt.plot(range(1, len(train_losses) + 1), train_losses, label='Training Loss', marker='o', markersize=3)
-    plt.plot(range(1, len(val_losses) + 1), val_losses, label='Validation Loss', marker='s', markersize=3)
+    epochs_range = range(start_epoch + 1, start_epoch + len(train_losses) + 1)
+    plt.plot(epochs_range, train_losses, label='Training Loss', marker='o', markersize=3)
+    plt.plot(epochs_range, val_losses, label='Validation Loss', marker='s', markersize=3)
     plt.axvline(x=75, color='r', linestyle='--', alpha=0.5, label='LR change')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
@@ -330,7 +402,7 @@ if train_losses:
     
     # Plot learning rate
     plt.subplot(1, 2, 2)
-    plt.plot(range(1, len(learning_rates) + 1), learning_rates, color='green', marker='o', markersize=3)
+    plt.plot(epochs_range, learning_rates, color='green', marker='o', markersize=3)
     plt.xlabel('Epoch')
     plt.ylabel('Learning Rate')
     plt.title('Learning Rate Schedule')
