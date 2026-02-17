@@ -85,13 +85,15 @@ def validate(model, val_loader, device):
     
     return total_loss / len(val_loader)
 
-# Checkpoint file path
+# Checkpoint file paths
 checkpoint_path = f'{checkpoint_dir}/latest_checkpoint.pth'
+best_model_path = f'{checkpoint_dir}/best_model.pth'
 
 # Initialize or resume
 start_epoch = 0
 train_losses = []
 val_losses = []
+best_val_loss = float('inf')
 
 # Check if checkpoint exists and load it
 if os.path.exists(checkpoint_path):
@@ -104,8 +106,10 @@ if os.path.exists(checkpoint_path):
     start_epoch = checkpoint['epoch'] + 1
     train_losses = checkpoint['train_losses']
     val_losses = checkpoint['val_losses']
+    best_val_loss = checkpoint.get('best_val_loss', float('inf'))
     
     print(f"Resuming from epoch {start_epoch}")
+    print(f"Previous best val loss: {best_val_loss:.4f}")
     print(f"Previous train loss: {train_losses[-1]:.4f}")
     print(f"Previous val loss: {val_losses[-1]:.4f}")
     print("=" * 50)
@@ -129,14 +133,28 @@ try:
         val_loss = validate(model, val_loader, device)
         val_losses.append(val_loss)
         print(f'Validation Loss: {val_loss:.4f}')
-        
-        # Save checkpoint after EVERY epoch
+
+        # Save best model
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'train_losses': train_losses,
+                'val_losses': val_losses,
+                'best_val_loss': best_val_loss,
+            }, best_model_path)
+            print(f'✓ Best model saved (val_loss: {val_loss:.4f})')
+
+        # Save latest checkpoint after every epoch (includes best_val_loss for safe resume)
         torch.save({
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
             'train_losses': train_losses,
             'val_losses': val_losses,
+            'best_val_loss': best_val_loss,
         }, checkpoint_path)
         print(f'Checkpoint saved')
         
@@ -149,6 +167,7 @@ try:
                 'optimizer_state_dict': optimizer.state_dict(),
                 'train_losses': train_losses,
                 'val_losses': val_losses,
+                'best_val_loss': best_val_loss,
             }, numbered_checkpoint)
             print(f'💾 Backup checkpoint saved: epoch {epoch+1}')
         
@@ -169,8 +188,10 @@ print("\n" + "=" * 50)
 print("Training session complete!")
 print(f"Completed epochs: {len(train_losses)}")
 if train_losses:
+    print(f"Best val loss: {best_val_loss:.4f}")
     print(f"Final train loss: {train_losses[-1]:.4f}")
     print(f"Final val loss: {val_losses[-1]:.4f}")
+print(f"Best model saved to: {best_model_path}")
 print("=" * 50)
 
 if train_losses:
