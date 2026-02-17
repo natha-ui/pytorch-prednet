@@ -353,6 +353,7 @@ try:
                 'optimizer_state_dict': optimizer.state_dict(),
                 'train_losses': train_losses,
                 'val_losses': val_losses,
+                'best_val_loss': best_val_loss,  # ← fixed: now preserved on resume
                 'extrap_start_time': extrap_start_time,
                 'A_channels': A_channels,
                 'R_channels': R_channels,
@@ -388,9 +389,13 @@ print("=" * 70)
 if train_losses:
     plt.figure(figsize=(12, 5))
     
+    # epochs_range covers the full loss history (all runs combined)
+    epochs_range = range(1, len(train_losses) + 1)
+    # lr_range covers only epochs trained in THIS run
+    lr_range = range(start_epoch + 1, start_epoch + len(learning_rates) + 1)
+
     # Plot losses
     plt.subplot(1, 2, 1)
-    epochs_range = range(start_epoch + 1, start_epoch + len(train_losses) + 1)
     plt.plot(epochs_range, train_losses, label='Training Loss', marker='o', markersize=3)
     plt.plot(epochs_range, val_losses, label='Validation Loss', marker='s', markersize=3)
     plt.axvline(x=75, color='r', linestyle='--', alpha=0.5, label='LR change')
@@ -399,10 +404,11 @@ if train_losses:
     plt.title('Extrapolation Fine-tuning: Loss')
     plt.legend()
     plt.grid(True, alpha=0.3)
-    
-    # Plot learning rate
+
+    # Plot learning rate (only epochs trained in this run)
     plt.subplot(1, 2, 2)
-    plt.plot(epochs_range, learning_rates, color='green', marker='o', markersize=3)
+    if learning_rates:
+        plt.plot(lr_range, learning_rates, color='green', marker='o', markersize=3)
     plt.xlabel('Epoch')
     plt.ylabel('Learning Rate')
     plt.title('Learning Rate Schedule')
