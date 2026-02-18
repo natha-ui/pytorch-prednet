@@ -186,7 +186,7 @@ else:
             n_batches += 1
 
             # ── Save visualisation grids for the FIRST batch ────────────
-            if batch_idx == 0:
+            if batch_idx == 5: #changed to see performance on non-blurry stimulus
                 # Ground-truth strip: frames extrap_start … extrap_start+4
                 gt_strip   = inputs[0, extrap_start:extrap_start + 5].cpu().byte()   # [5, C, H, W]
                 pred_strip = preds [0, extrap_start:extrap_start + 5].cpu().byte()   # [5, C, H, W]
