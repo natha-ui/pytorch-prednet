@@ -27,7 +27,7 @@ test_loader = DataLoader(kitti_test, batch_size=batch_size, shuffle=False)
 model = PredNet(R_channels, A_channels, output_mode='prediction')
 
 # Load checkpoint correctly
-checkpoint_path = '/content/drive/MyDrive/prednet_checkpoints/latest_checkpoint.pth'
+checkpoint_path = '/content/drive/MyDrive/prednet_checkpoints/best_model.pth'
 checkpoint = torch.load(checkpoint_path)
 model.load_state_dict(checkpoint['model_state_dict'])
 print(f"Loaded model from epoch {checkpoint['epoch'] + 1}")
