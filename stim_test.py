@@ -144,7 +144,7 @@ ERR_CMAP = matplotlib.colors.LinearSegmentedColormap.from_list(
 )
 
 
-def build_mosaic(gt_seqs, pred_seqs, err_seqs, mae_per_seq,
+def build_mosaic(gt_seqs, pred_seqs, err_seqs, vis_mae,
                  step_mae, n_batches, out_path='stimulus_t1_mosaic.png'):
     """
     Multi-sequence mosaic:
