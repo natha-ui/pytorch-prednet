@@ -232,26 +232,37 @@ def build_mosaic(gt_seqs, pred_seqs, err_seqs, mae_per_seq,
 
     # ── Per-frame MAE ribbon ──────────────────────────────────────────────────
     ax_mae = fig.add_subplot(outer[N])
-    mae_avg = (step_mae / max(n_batches, 1)).numpy()
-    frames  = np.arange(1, NT)      # skip t=0 (matches training convention)
+    mae_val = (step_mae[NT - 1] / max(n_batches, 1)).item()
 
-    ax_mae.bar(frames, mae_avg, color=[PR_C if t == NT - 1 else GT_C for t in frames],
-               width=0.7, alpha=0.85)
-    ax_mae.axvline(NT - 1.5, color=PR_C, linewidth=1.0, linestyle='--', alpha=0.6)
-    ax_mae.text(NT - 1, max(mae_avg) * 0.95,
-                f't{NT-1}\nMAE={mae_avg[-1]:.1f}',
-                ha='center', va='top', fontsize=6, color=PR_C)
+    # Single bar showing the t+1 prediction MAE, with per-sequence dots overlaid
+    ax_mae.bar([NT - 1], [mae_val], color=PR_C, width=0.5, alpha=0.85, zorder=2)
+    for seq_mae in vis_mae:
+        ax_mae.scatter([NT - 1], [seq_mae], color=ERR_C,
+                       s=18, zorder=3, alpha=0.7)
 
-    ax_mae.set_xticks(frames)
-    ax_mae.set_xticklabels([f't{t}' for t in frames], fontsize=7)
-    ax_mae.yaxis.set_major_locator(ticker.MaxNLocator(4, integer=True))
-    ax_mae.set_ylabel('MAE\n(px)', fontsize=7, color=DIM, labelpad=4)
-    ax_mae.set_xlabel('Frame', fontsize=7, color=DIM, labelpad=2)
+    # Annotate the bar
+    ax_mae.text(NT - 1, mae_val + 0.3,
+                f'{mae_val:.2f} px',
+                ha='center', va='bottom', fontsize=7, color=PR_C)
+
+    # Add a reference line for context
+    ax_mae.axhline(mae_val, color=PR_C, linewidth=0.8, linestyle='--', alpha=0.4)
+
+    ax_mae.set_xticks([NT - 1])
+    ax_mae.set_xticklabels([f't={NT-1}  (predicted frame)'], fontsize=8, color=PR_C)
+    ax_mae.yaxis.set_major_locator(ticker.MaxNLocator(5, integer=True))
+    ax_mae.set_ylabel('MAE (px)', fontsize=7, color=DIM, labelpad=4)
+    ax_mae.set_xlim(NT - 2, NT)
     ax_mae.tick_params(length=2)
     ax_mae.grid(axis='y', color=SEP, linewidth=0.5, alpha=0.5)
     ax_mae.spines['top'].set_visible(False)
     ax_mae.spines['right'].set_visible(False)
-    ax_mae.set_xlim(0.3, NT - 0.3)
+
+    # Explanatory caption
+    ax_mae.text(0.02, 0.92,
+                f'Input context: t=0 – t={NT-2}   |   dots = individual sequences',
+                transform=ax_mae.transAxes,
+                fontsize=6.5, color=DIM, va='top')
 
     # Colourbar
     cbar_ax = fig.add_axes([0.975, 0.22, 0.010, 0.68])
