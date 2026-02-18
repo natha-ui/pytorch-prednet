@@ -76,7 +76,7 @@ test_file      = os.path.join(DATA_DIR, 'X_test.hkl')
 test_sources   = os.path.join(DATA_DIR, 'sources_test.hkl')
 
 # t+1 (original) checkpoint
-orig_ckpt_path   = os.path.join(WEIGHTS_DIR, 'latest_checkpoint.pth')
+orig_ckpt_path   = os.path.join(WEIGHTS_DIR, 'best_model.pth')
 # t+5 fine-tuned checkpoint
 extrap_ckpt_path = os.path.join(WEIGHTS_DIR, 'prednet_kitti_weights_extrap_finetuned.pth')
 
