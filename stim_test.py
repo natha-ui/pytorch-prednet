@@ -26,7 +26,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 import numpy as np
-import hickle as hkl
+import h5py
 from torch.utils.data import Dataset, DataLoader
 import matplotlib
 import matplotlib.pyplot as plt
@@ -77,24 +77,30 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class StimulusDataset(Dataset):
     """
-    Reads X_test.hkl produced by mp4_to_prednet.py.
+    Reads X_test.h5 produced by mp4_to_prednet.py.
     Returns float32 tensors in [T, H, W, C] order (matches KITTI loader).
     """
 
     def __init__(self, data_dir: str, nt: int):
         data_dir = Path(data_dir)
-        x_path = data_dir / 'X_test.hkl'
-        s_path = data_dir / 'sources_test.hkl'
+        x_path = data_dir / 'X_test.h5'
+        s_path = data_dir / 'sources_test.h5'
 
         if not x_path.exists():
             raise FileNotFoundError(
-                f"X_test.hkl not found in {data_dir}. "
+                f"X_test.h5 not found in {data_dir}. "
                 "Run mp4_to_prednet.py first."
             )
 
-        self.X       = hkl.load(str(x_path))    # [S, NT, H, W, C]  uint8
-        self.sources = hkl.load(str(s_path))     # [S]
-        self.nt      = nt
+        with h5py.File(x_path, 'r') as f:
+            self.X = f['data'][:]                        # [S, NT, H, W, C]  uint8
+
+        with h5py.File(s_path, 'r') as f:
+            self.sources = np.array(
+                [s.decode('utf-8') for s in f['data'][:]]
+            )
+
+        self.nt = nt
 
         assert self.X.shape[1] >= nt, (
             f"Sequences have length {self.X.shape[1]} but NT={nt}. "
