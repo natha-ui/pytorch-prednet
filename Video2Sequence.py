@@ -2,15 +2,15 @@
 """
 mp4_to_prednet.py
 -----------------
-Converts an MP4 video into the .hkl sequence format expected by PredNet's
-KITTI dataloader (X_test.hkl + sources_test.hkl).
+Converts an MP4 video into HDF5 sequence files compatible with PredNet's
+dataloader (X_test.h5 + sources_test.h5).
 
 Usage:
     python mp4_to_prednet.py video.mp4 --out ./my_video_data
     python mp4_to_prednet.py video.mp4 --out ./my_video_data --nt 15 --fps 10 --overlap
 
 Dependencies:
-    pip install opencv-python numpy hickle tqdm
+    pip install opencv-python numpy h5py tqdm
 """
 
 import argparse
@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 import cv2
-import hickle as hkl
+import h5py
 import numpy as np
 from tqdm import tqdm
 
@@ -51,13 +51,13 @@ def video_to_prednet(
     Parameters
     ----------
     mp4_path    : path to input .mp4
-    out_dir     : directory to write .hkl files into
+    out_dir     : directory to write .h5 files into
     target_h/w  : frame size — must match what PredNet was trained on
     nt          : sequence length — must match nt_extrap in your test script
     target_fps  : resample video to this frame rate before windowing
     overlap     : if True, use a stride-1 sliding window; otherwise non-overlapping
     split       : if > 0, also produce a train split using this fraction of sequences
-    source_name : label stored in sources_*.hkl (defaults to video stem)
+    source_name : label stored in sources_*.h5 (defaults to video stem)
     """
 
     mp4_path = Path(mp4_path)
@@ -154,12 +154,16 @@ def video_to_prednet(
 
 def _save(sequences: np.ndarray, sources: np.ndarray,
           out_dir: Path, prefix: str) -> None:
-    """Write X_<prefix>.hkl and sources_<prefix>.hkl"""
-    x_path = out_dir / f'X_{prefix}.hkl'
-    s_path = out_dir / f'sources_{prefix}.hkl'
+    """Write X_<prefix>.h5 and sources_<prefix>.h5"""
+    x_path = out_dir / f'X_{prefix}.h5'
+    s_path = out_dir / f'sources_{prefix}.h5'
 
-    hkl.dump(sequences, str(x_path),  mode='w')
-    hkl.dump(sources,   str(s_path),  mode='w')
+    with h5py.File(x_path, 'w') as f:
+        f.create_dataset('data', data=sequences, compression='gzip', compression_opts=4)
+
+    with h5py.File(s_path, 'w') as f:
+        encoded = np.array([s.encode('utf-8') for s in sources])
+        f.create_dataset('data', data=encoded)
 
     size_mb = x_path.stat().st_size / 1e6
     log.info(f"Saved {x_path.name}  ({size_mb:.1f} MB)  shape={sequences.shape}")
@@ -171,19 +175,21 @@ def _save(sequences: np.ndarray, sources: np.ndarray,
 # ─────────────────────────────────────────────────────────────────────────────
 
 def verify(out_dir: Path, prefix: str = 'test') -> None:
-    """Load saved .hkl files and print a quick sanity report."""
-    x_path = out_dir / f'X_{prefix}.hkl'
-    s_path = out_dir / f'sources_{prefix}.hkl'
+    """Load saved .h5 files and print a quick sanity report."""
+    x_path = out_dir / f'X_{prefix}.h5'
+    s_path = out_dir / f'sources_{prefix}.h5'
 
-    X = hkl.load(str(x_path))
-    S = hkl.load(str(s_path))
+    with h5py.File(x_path, 'r') as f:
+        X = f['data'][:]
+    with h5py.File(s_path, 'r') as f:
+        S = np.array([s.decode('utf-8') for s in f['data'][:]])
 
     print('\n── Verification ──────────────────────────────────────')
     print(f'  X shape   : {X.shape}   dtype={X.dtype}')
     print(f'  X range   : [{X.min()}, {X.max()}]')
     print(f'  Sources   : {np.unique(S).tolist()}')
     print(f'  # seqs    : {len(X)}')
-    print('  ✅ Files look correct for PredNet KITTI dataloader')
+    print('  ✅ Files look correct for PredNet dataloader')
     print('─────────────────────────────────────────────────────\n')
 
 
@@ -193,12 +199,12 @@ def verify(out_dir: Path, prefix: str = 'test') -> None:
 
 def parse_args():
     p = argparse.ArgumentParser(
-        description='Convert an MP4 to PredNet-compatible .hkl sequences',
+        description='Convert an MP4 to PredNet-compatible .h5 sequences',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     p.add_argument('mp4',           type=str,   help='Input .mp4 file')
     p.add_argument('--out',  '-o',  type=str,   default='./prednet_data',
-                   help='Output directory for .hkl files')
+                   help='Output directory for .h5 files')
     p.add_argument('--nt',          type=int,   default=15,
                    help='Sequence length — must match nt_extrap in test script')
     p.add_argument('--height',      type=int,   default=128,
@@ -213,7 +219,7 @@ def parse_args():
                    help='If >0, fraction of sequences reserved for test '
                         '(remainder becomes train). E.g. 0.1 = 90%% train / 10%% test.')
     p.add_argument('--source-name', type=str,   default=None,
-                   help='Label stored in sources_*.hkl (defaults to video filename stem)')
+                   help='Label stored in sources_*.h5 (defaults to video filename stem)')
     p.add_argument('--verify',      action='store_true',
                    help='After saving, reload and print a sanity check')
     return p.parse_args()
