@@ -50,7 +50,7 @@ log = logging.getLogger(__name__)
 # ═════════════════════════════════════════════════════════════════════════════
 
 DATA_DIR        = './prednet_data'          # output dir from mp4_to_prednet.py
-WEIGHTS_DIR     = './prednet_checkpoints'   # directory containing your .pth files
+WEIGHTS_DIR     = '/content/drive/MyDrive/prednet_checkpoints'  # directory containing your .pth files
 
 # Use the fine-tuned extrapolation checkpoint
 EXTRAP_CKPT     = os.path.join(WEIGHTS_DIR, 'prednet_kitti_weights_extrap_finetuned.pth')
