@@ -33,7 +33,7 @@ A_channels = (3, 48, 96, 192)
 R_channels = (3, 48, 96, 192)
 
 # File paths
-orig_weights_file = os.path.join(WEIGHTS_DIR, 'latest_checkpoint.pth')  # original t+1 weights
+orig_weights_file = os.path.join(WEIGHTS_DIR, 'best_model.pth')  # original t+1 weights
 extrap_weights_file = os.path.join(WEIGHTS_DIR, 'prednet_kitti_weights_extrap_finetuned.pth')
 
 # Data files
