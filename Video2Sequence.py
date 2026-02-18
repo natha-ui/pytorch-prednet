@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-mp4_to_prednet.py
+Video2Sequence.py
 -----------------
 Converts an MP4 video into HDF5 sequence files compatible with PredNet's
 dataloader (X_test.h5 + sources_test.h5).
 
 Usage:
-    python mp4_to_prednet.py video.mp4 --out ./my_video_data
-    python mp4_to_prednet.py video.mp4 --out ./my_video_data --nt 15 --fps 10 --overlap
+    python Video2Sequence.py video.mp4 --out ./my_video_data
+    python Video2Sequence.py video.mp4 --out ./my_video_data --nt 15 --fps 10 --overlap
 
 Dependencies:
     pip install opencv-python numpy h5py tqdm
@@ -46,6 +46,7 @@ def video_to_prednet(
     overlap: bool = False,
     split: float = 0.0,
     source_name: str | None = None,
+    mono: bool = False,
 ) -> None:
     """
     Parameters
@@ -58,6 +59,7 @@ def video_to_prednet(
     overlap     : if True, use a stride-1 sliding window; otherwise non-overlapping
     split       : if > 0, also produce a train split using this fraction of sequences
     source_name : label stored in sources_*.h5 (defaults to video stem)
+    mono        : if True, convert to greyscale (stored as 3-channel for model compatibility)
     """
 
     mp4_path = Path(mp4_path)
@@ -82,6 +84,8 @@ def video_to_prednet(
     log.info(f"Video  : {mp4_path.name}")
     log.info(f"Native : {native_w}×{native_h}  {native_fps:.2f} fps  {total_frames} frames")
     log.info(f"Target : {target_w}×{target_h}  {target_fps:.2f} fps")
+    if mono:
+        log.info("Mono   : greyscale conversion enabled (3-channel output)")
 
     # Frame-skip ratio: keep every Nth native frame to hit target_fps
     keep_every = max(1, round(native_fps / target_fps))
@@ -102,6 +106,11 @@ def video_to_prednet(
             # Resize with high-quality interpolation
             frame = cv2.resize(frame, (target_w, target_h),
                                interpolation=cv2.INTER_LANCZOS4)
+            # Convert to greyscale if requested (replicate to 3 channels so
+            # model architecture is unchanged)
+            if mono:
+                grey  = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)   # [H, W]
+                frame = np.stack([grey, grey, grey], axis=-1)      # [H, W, 3]
             raw_frames.append(frame.astype(np.uint8))
         native_idx += 1
         pbar.update(1)
@@ -220,6 +229,8 @@ def parse_args():
                         '(remainder becomes train). E.g. 0.1 = 90%% train / 10%% test.')
     p.add_argument('--source-name', type=str,   default=None,
                    help='Label stored in sources_*.h5 (defaults to video filename stem)')
+    p.add_argument('--mono',        action='store_true',
+                   help='Convert frames to greyscale (stored as 3-channel for model compatibility)')
     p.add_argument('--verify',      action='store_true',
                    help='After saving, reload and print a sanity check')
     return p.parse_args()
@@ -239,6 +250,7 @@ def main():
             overlap     = args.overlap,
             split       = args.split,
             source_name = args.source_name,
+            mono        = args.mono,
         )
 
         if args.verify:
